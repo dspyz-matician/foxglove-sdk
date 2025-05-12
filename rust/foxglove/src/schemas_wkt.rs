@@ -201,6 +201,19 @@ impl From<Duration> for prost_types::Duration {
     }
 }
 
+impl From<prost_types::Duration> for Duration {
+    fn from(v: prost_types::Duration) -> Self {
+        let prost_types::Duration { seconds, nanos } = v;
+        let sec = i32::try_from(seconds).unwrap_or_else(|e| {
+            unreachable!("expected {} to be within [-2*31, 2**31): {e}", seconds)
+        });
+        let nsec = u32::try_from(nanos).unwrap_or_else(|e| {
+            unreachable!("expected {} to be within [0, 1_000_000_000): {e}", v.nanos)
+        });
+        Self::new(sec, nsec)
+    }
+}
+
 impl prost::Message for Duration {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut)
     where
@@ -211,16 +224,18 @@ impl prost::Message for Duration {
 
     fn merge_field(
         &mut self,
-        _tag: u32,
-        _wire_type: prost::encoding::wire_type::WireType,
-        _buf: &mut impl bytes::Buf,
-        _ctx: prost::encoding::DecodeContext,
+        tag: u32,
+        wire_type: prost::encoding::wire_type::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError>
     where
         Self: Sized,
     {
-        // We only support encoding for now.
-        unimplemented!("not implemented");
+        let mut prost_duration = self.into_prost();
+        prost_duration.merge_field(tag, wire_type, buf, ctx)?;
+        *self = Self::from(prost_duration);
+        Ok(())
     }
 
     fn encoded_len(&self) -> usize {
@@ -392,6 +407,18 @@ impl From<Timestamp> for prost_types::Timestamp {
     }
 }
 
+impl From<prost_types::Timestamp> for Timestamp {
+    fn from(v: prost_types::Timestamp) -> Self {
+        let prost_types::Timestamp { seconds, nanos } = v;
+        let sec = u32::try_from(seconds)
+            .unwrap_or_else(|e| unreachable!("expected {} to be within [0, 2**32): {e}", seconds));
+        let nsec = u32::try_from(nanos).unwrap_or_else(|e| {
+            unreachable!("expected {} to be within [0, 1_000_000_000): {e}", v.nanos)
+        });
+        Self::new(sec, nsec)
+    }
+}
+
 impl prost::Message for Timestamp {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut)
     where
@@ -402,16 +429,18 @@ impl prost::Message for Timestamp {
 
     fn merge_field(
         &mut self,
-        _tag: u32,
-        _wire_type: prost::encoding::wire_type::WireType,
-        _buf: &mut impl bytes::Buf,
-        _ctx: prost::encoding::DecodeContext,
+        tag: u32,
+        wire_type: prost::encoding::wire_type::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError>
     where
         Self: Sized,
     {
-        // We only support encoding for now.
-        unimplemented!("not implemented");
+        let mut prost_timestamp = self.into_prost();
+        prost_timestamp.merge_field(tag, wire_type, buf, ctx)?;
+        *self = Self::from(prost_timestamp);
+        Ok(())
     }
 
     fn encoded_len(&self) -> usize {
